@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpudGen 🥔 — code &amp; data generator</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #0d0a07; color: #e8dccb;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap; padding: 10px 18px;
+    background: linear-gradient(180deg, #1c130c, #130d08);
+    border-bottom: 1px solid #2a1e14; z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    font-size: 26px; line-height: 1;
+    filter: drop-shadow(0 0 14px rgba(255,159,67,.5));
+    animation: bob 3.2s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%,100% { transform: translateY(0) rotate(-6deg); }
+    50%     { transform: translateY(-5px) rotate(6deg); }
+  }
+  .brand h1 {
+    margin: 0; font-size: 17px; letter-spacing: .4px;
+    background: linear-gradient(90deg, #ffc06b, #ff8a5c);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .brand p { margin: 1px 0 0; font-size: 11px; color: #7c6a56; letter-spacing: .3px; }
+  .brand p b { color: #ffb347; font-weight: 600; }
+
+  .credit {
+    font-size: 11px; color: #ff9f43;
+    background: rgba(255,159,67,.08);
+    border: 1px solid rgba(255,159,67,.2);
+    padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+  }
+  .credit b { color: #ffc06b; font-weight: 700; }
+
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  button {
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    color: #e8dccb; background: #211810;
+    border: 1px solid #35261a; border-radius: 8px;
+    padding: 7px 12px; cursor: pointer;
+    transition: .15s ease;
+  }
+  button:hover { background: #302216; border-color: #5c4128; transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button.primary {
+    background: linear-gradient(180deg, #ff9f43, #e8761f);
+    border-color: #ffb347; color: #2a1608;
+    box-shadow: 0 3px 14px rgba(255,140,50,.28);
+  }
+  button.primary:hover { background: linear-gradient(180deg, #ffb05c, #f58528); }
+  button.small { padding: 5px 10px; font-size: 11.5px; }
+
+  /* ===== LAYOUT ===== */
+  main { flex: 1; display: flex; min-height: 0; gap: 12px; padding: 12px; }
+  .pane {
+    display: flex; flex-direction: column; min-height: 0; min-width: 0;
+    background: #16110c; border: 1px solid #261c13;
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  }
+  .left  { flex: 1.05; }
+  .right { flex: 1; }
+  .pane-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px; font-size: 11.5px; letter-spacing: .6px;
+    color: #9d856a; text-transform: lowercase;
+    background: #18120d; border-bottom: 1px solid #261c13;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    flex-shrink: 0;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #ff9f43; box-shadow: 0 0 8px #ff9f43; }
+  .dot.green { background: #a8d977; box-shadow: 0 0 8px #a8d977; }
+  .pane-head .right { margin-left: auto; font-size: 11px; color: #6a5947; }
+
+  /* ===== INPUT TEXTAREA ===== */
+  #input {
+    height: 110px; flex-shrink: 0;
+    background: #100b07; color: #e8dccb;
+    border: 0; border-bottom: 1px solid #221910;
+    padding: 12px 14px; outline: none; resize: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.6;
+    scrollbar-width: thin; scrollbar-color: #3a2a1c transparent;
+    caret-color: #ffb347;
+  }
+  #input::placeholder { color: #4d3e2e; }
+  #input::-webkit-scrollbar { width: 10px; }
+  #input::-webkit-scrollbar-thumb { background: #3a2a1c; border-radius: 6px; border: 2px solid #100b07; }
+  #input::selection { background: rgba(255,159,67,.3); }
+
+  /* ===== CATEGORY PILLS ===== */
+  .cats {
+    display: flex; gap: 5px; padding: 10px 12px 6px;
+    overflow-x: auto; flex-shrink: 0;
+    border-bottom: 1px solid #1e1611;
+    scrollbar-width: none;
+  }
+  .cats::-webkit-scrollbar { display: none; }
+  .cats button {
+    flex-shrink: 0; padding: 6px 11px; font-size: 11.5px;
+    background: #1a130d; border-color: #241a12; color: #8a745c;
+  }
+  .cats button:hover { color: #e8dccb; }
+  .cats button.active {
+    background: linear-gradient(180deg, rgba(255,159,67,.22), rgba(255,159,67,.08));
+    border-color: #ff9f43; color: #ffb347;
+  }
+
+  /* ===== OP GRID ===== */
+  .ops {
+    flex: 1; overflow-y: auto; padding: 10px 12px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 6px; align-content: start;
+    scrollbar-width: thin; scrollbar-color: #3a2a1c transparent;
+  }
+  .ops::-webkit-scrollbar { width: 10px; }
+  .ops::-webkit-scrollbar-thumb { background: #3a2a1c; border-radius: 6px; border: 2px solid #16110c; }
+
+  .ops button {
+    padding: 9px 11px; font-size: 12px; font-weight: 500;
+    background: #1a130d; border-color: #241a12; color: #b8a58e;
+    text-align: left; line-height: 1.3;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .ops button:hover { color: #ffb347; border-color: #4a3520; }
+  .ops button.active {
+    background: linear-gradient(180deg, rgba(255,159,67,.14), rgba(255,159,67,.04));
+    border-color: #ff9f43; color: #ffb347; font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(255,159,67,.25) inset;
+  }
+
+  /* ===== PARAMS ===== */
+  .params {
+    flex-shrink: 0; max-height: 40%;
+    overflow-y: auto;
+    border-top: 1px solid #221910;
+    background: #130d09;
+    padding: 10px 12px;
+    scrollbar-width: thin; scrollbar-color: #3a2a1c transparent;
+  }
+  .params::-webkit-scrollbar { width: 10px; }
+  .params::-webkit-scrollbar-thumb { background: #3a2a1c; border-radius: 6px; border: 2px solid #130d09; }
+  .params:empty { display: none; }
+  .params-head {
+    font-size: 11px; color: #7c6a56; margin-bottom: 8px;
+    letter-spacing: .4px; display: flex; align-items: center; gap: 6px;
+  }
+  .params-head b { color: #ffb347; font-weight: 700; }
+  .param-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .param-row label {
+    flex-shrink: 0; width: 90px;
+    font-size: 11.5px; color: #8a745c;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .param-row input {
+    flex: 1; min-width: 0;
+    background: #1a130d; color: #e8dccb;
+    border: 1px solid #2a1e14; border-radius: 6px;
+    padding: 6px 9px; outline: none;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  .param-row input:focus { border-color: #ff9f43; box-shadow: 0 0 0 2px rgba(255,159,67,.12); }
+
+  /* ===== OUTPUT ===== */
+  #output {
+    flex: 1; background: #100b07; color: #a8d977;
+    border: 0; padding: 12px 14px; outline: none; resize: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.6;
+    scrollbar-width: thin; scrollbar-color: #3a2a1c transparent;
+  }
+  #output::-webkit-scrollbar { width: 10px; }
+  #output::-webkit-scrollbar-thumb { background: #3a2a1c; border-radius: 6px; border: 2px solid #100b07; }
+  #output::selection { background: rgba(168,217,119,.25); }
+
+  .outbar {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 8px 12px; background: #130d09;
+    border-top: 1px solid #221910; flex-shrink: 0;
+  }
+  .outbar .stat {
+    font-size: 11px; color: #6a5947;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    margin-right: auto;
+  }
+  .outbar .stat b { color: #ffb347; }
+
+  /* ===== MOBILE ===== */
+  @media (max-width: 880px) {
+    main { flex-direction: column; }
+    .left, .right { flex: 1 1 50%; }
+    .credit { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🥔</span>
+    <div>
+      <h1>SpudGen <span style="font-size:12px;opacity:.7">v0.1</span></h1>
+      <p>code &amp; data generator · <b>made by DS &amp; Jay</b></p>
+    </div>
+  </div>
+  <div class="actions">
+    <span class="credit">made by <b>DS</b> &amp; <b>Jay</b></span>
+    <button class="small" id="clearBtn">🧹 Clear</button>
+    <button class="small" id="swapBtn">⇄ Output → Input</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============ LEFT: input + ops ============ -->
+  <section class="pane left">
+    <div class="pane-head"><span class="dot"></span> input &amp; operation</div>
+
+    <textarea id="input" placeholder="Type or paste text here...
+Only some ops (Case, Text, Templates) use this. Numbers & Letters ignore it."></textarea>
+
+    <div class="cats" id="cats"></div>
+    <div class="ops" id="ops"></div>
+    <div class="params" id="params"></div>
+  </section>
+
+  <!-- ============ RIGHT: output ============ -->
+  <section class="pane right">
+    <div class="pane-head">
+      <span class="dot green"></span> output
+      <span class="right" id="outTitle">idle</span>
+    </div>
+    <textarea id="output" readonly spellcheck="false"></textarea>
+    <div class="outbar">
+      <span class="stat" id="stat">— lines · — chars</span>
+      <button class="small" id="rerollBtn" title="Re-run for random ops">🎲 Reroll</button>
+      <button class="small" id="copyBtn">📋 Copy</button>
+      <button class="small primary" id="dlBtn">⬇ Download</button>
+    </div>
+  </section>
+</main>
+
+<script>
+/* =========================================================================
+   SpudGen 🥔 v0.1 — made by DS & Jay
+   Single-file code & data generator.
+   ========================================================================= */
+
+/* ------------------------- helpers ------------------------------------- */
+
+const $ = id => document.getElementById(id);
+const inputEl  = $('input');
+const outputEl = $('output');
+const catsEl   = $('cats');
+const opsEl    = $('ops');
+const paramsEl = $('params');
+const statEl   = $('stat');
+const outTitle = $('outTitle');
+
+const STORAGE_KEY = 'spudgen.v1.state';
+
+// cap so we don't freeze the tab
+const MAX_LINES = 200000;
+
+function seq(from, to, step) {
+  step = step || (from <= to ? 1 : -1);
+  const out = [];
+  if (step > 0) {
+    for (let i = from; i <= to; i += step) out.push(i);
+  } else {
+    for (let i = from; i >= to; i += step) out.push(i);
+  }
+  return out.join('\n');
+}
+
+function toRoman(n) {
+  const map = [
+    [1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],
+    [100,'C'],[90,'XC'],[50,'L'],[40,'XL'],
+    [10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']
+  ];
+  let out = '';
+  for (const [v,s] of map) while (n >= v) { out += s; n -= v; }
+  return out;
+}
+
+/* ------------------------- ops database -------------------------------- */
+
+// each op: { cat, label, params?, fn(input, params) }
+const OPS = {
+  /* -------- CASE -------- */
+  upper:      { cat:'case', label:'UPPERCASE',          fn: s => s.toUpperCase() },
+  lower:      { cat:'case', label:'lowercase',          fn: s => s.toLowerCase() },
+  title:      { cat:'case', label:'Title Case',         fn: s => s.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase()) },
+  sentence:   { cat:'case', label:'Sentence case',      fn: s => s.toLowerCase().replace(/(^\s*[a-z]|[.!?]\s+[a-z])/g, c => c.toUpperCase()) },
+  camel:      { cat:'case', label:'camelCase',          fn: s => s.trim().replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase()).replace(/^[A-Z]/, c => c.toLowerCase()) },
+  pascal:     { cat:'case', label:'PascalCase',         fn: s => s.trim().replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase()).replace(/^[a-z]/, c => c.toUpperCase()) },
+  snake:      { cat:'case', label:'snake_case',         fn: s => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') },
+  screaming:  { cat:'case', label:'SCREAMING_SNAKE',    fn: s => s.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') },
+  kebab:      { cat:'case', label:'kebab-case',         fn: s => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') },
+  dotcase:    { cat:'case', label:'dot.case',           fn: s => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '') },
+  reverse:    { cat:'case', label:'reverse text',       fn: s => s.split('').reverse().join('') },
+  flip:       { cat:'case', label:'fLIP cASE',          fn: s => s.split('').map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join('') },
+
+  /* -------- TEXT -------- */
+  addSpaces:    { cat:'text', label:'h e l l o',              fn: s => s.split('').join(' ') },
+  removeSpaces: { cat:'text', label:'Remove all spaces',      fn: s => s.replace(/\s+/g, '') },
+  dotsToSpaces: { cat:'text', label:'Dots → spaces',          fn: s => s.replace(/\./g, ' ') },
+  spacesToDots: { cat:'text', label:'Spaces → dots',          fn: s => s.replace(/ /g, '.') },
+  removeDots:   { cat:'text', label:'Remove dots',            fn: s => s.replace(/\./g, '') },
+  removeChar:   { cat:'text', label:'Remove character',       params:[{name:'char',label:'remove',def:'-'}],
+                  fn: (s,p) => p.char ? s.split(p.char).join('') : s },
+  replaceXY:    { cat:'text', label:'Replace X with Y',       params:[{name:'from',label:'find',def:'a'},{name:'to',label:'replace',def:'b'}],
+                  fn: (s,p) => p.from ? s.split(p.from).join(p.to) : s },
+  splitLines:   { cat:'text', label:'Split by delimiter',     params:[{name:'delim',label:'delimiter',def:','}],
+                  fn: (s,p) => s.split(p.delim || ',').join('\n') },
+  joinWith:     { cat:'text', label:'Join lines with',        params:[{name:'delim',label:'join with',def:', '}],
+                  fn: (s,p) => s.split(/\r?\n/).join(p.delim) },
+  trim:         { cat:'text', label:'Trim every line',        fn: s => s.split('\n').map(l => l.trim()).join('\n') },
+  removeEmpty:  { cat:'text', label:'Remove empty lines',     fn: s => s.split('\n').filter(l => l.trim() !== '').join('\n') },
+  unique:       { cat:'text', label:'Unique lines',           fn: s => [...new Set(s.split('\n'))].join('\n') },
+  sortAZ:       { cat:'text', label:'Sort lines A→Z',         fn: s => s.split('\n').sort((a,b) => a.localeCompare(b)).join('\n') },
+  sortZA:       { cat:'text', label:'Sort lines Z→A',         fn: s => s.split('\n').sort((a,b) => b.localeCompare(a)).join('\n') },
+  sortLen:      { cat:'text', label:'Sort by length',         fn: s => s.split('\n').sort((a,b) => a.length - b.length).join('\n') },
+  reverseLines: { cat:'text', label:'Reverse line order',     fn: s => s.split('\n').reverse().join('\n') },
+  numberLines:  { cat:'text', label:'Number each line',       fn: s => s.split('\n').map((l,i) => (i+1) + '. ' + l).join('\n') },
+  shuffle:      { cat:'text', label:'Shuffle lines 🎲',       fn: s => {
+                    const a = s.split('\n');
+                    for (let i = a.length - 1; i > 0; i--) {
+                      const j = Math.floor(Math.random() * (i + 1));
+                      [a[i], a[j]] = [a[j], a[i]];
+                    }
+                    return a.join('\n');
+                  }},
+
+  /* -------- NUMBERS -------- */
+  range:      { cat:'num', label:'1 → N',              params:[{name:'to',label:'to',def:100,type:'number'}],
+                fn: (s,p) => seq(1, +p.to || 100, 1) },
+  rangeStep:  { cat:'num', label:'Range with step',    params:[
+                  {name:'from',label:'from',def:0,type:'number'},
+                  {name:'to',label:'to',def:100,type:'number'},
+                  {name:'step',label:'step',def:5,type:'number'}],
+                fn: (s,p) => seq(+p.from, +p.to, +p.step || 1) },
+  countdown:  { cat:'num', label:'Countdown',          params:[{name:'from',label:'from',def:20,type:'number'}],
+                fn: (s,p) => seq(+p.from, 1, -1) },
+  evens:      { cat:'num', label:'Evens',              params:[{name:'to',label:'up to',def:50,type:'number'}],
+                fn: (s,p) => seq(0, +p.to, 2) },
+  odds:       { cat:'num', label:'Odds',               params:[{name:'to',label:'up to',def:50,type:'number'}],
+                fn: (s,p) => seq(1, +p.to, 2) },
+  multiples:  { cat:'num', label:'Multiples of N',     params:[
+                  {name:'n',label:'of',def:5,type:'number'},
+                  {name:'count',label:'count',def:20,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 1; i <= +p.count; i++) a.push(+p.n * i);
+                  return a.join('\n');
+                }},
+  powers:     { cat:'num', label:'Powers of 2',        params:[{name:'count',label:'count',def:20,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 0; i < +p.count; i++) a.push(Math.pow(2, i));
+                  return a.join('\n');
+                }},
+  squares:    { cat:'num', label:'Squares',            params:[{name:'to',label:'up to n',def:20,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 1; i <= +p.to; i++) a.push(i * i);
+                  return a.join('\n');
+                }},
+  fibonacci:  { cat:'num', label:'Fibonacci',          params:[{name:'count',label:'count',def:20,type:'number'}],
+                fn: (s,p) => {
+                  const a = [0, 1];
+                  while (a.length < +p.count) a.push(a[a.length-1] + a[a.length-2]);
+                  return a.slice(0, +p.count).join('\n');
+                }},
+  primes:     { cat:'num', label:'Primes up to N',     params:[{name:'to',label:'up to',def:100,type:'number'}],
+                fn: (s,p) => {
+                  const out = [];
+                  for (let n = 2; n <= +p.to; n++) {
+                    let ok = true;
+                    for (let i = 2; i * i <= n; i++) if (n % i === 0) { ok = false; break; }
+                    if (ok) out.push(n);
+                  }
+                  return out.join('\n');
+                }},
+  randomNums: { cat:'num', label:'Random numbers 🎲',  params:[
+                  {name:'count',label:'count',def:20,type:'number'},
+                  {name:'min',label:'min',def:1,type:'number'},
+                  {name:'max',label:'max',def:100,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 0; i < +p.count; i++)
+                    a.push(Math.floor(Math.random() * (+p.max - +p.min + 1)) + +p.min);
+                  return a.join('\n');
+                }},
+  padded:     { cat:'num', label:'Zero-padded',        params:[
+                  {name:'to',label:'up to',def:100,type:'number'},
+                  {name:'width',label:'width',def:3,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 1; i <= +p.to; i++) a.push(String(i).padStart(+p.width, '0'));
+                  return a.join('\n');
+                }},
+  roman:      { cat:'num', label:'Roman numerals',     params:[{name:'to',label:'up to',def:50,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 1; i <= +p.to; i++) a.push(toRoman(i));
+                  return a.join('\n');
+                }},
+  binary:     { cat:'num', label:'Binary',             params:[{name:'to',label:'up to',def:32,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 0; i <= +p.to; i++) a.push(i.toString(2));
+                  return a.join('\n');
+                }},
+  hex:        { cat:'num', label:'Hex',                params:[{name:'to',label:'up to',def:64,type:'number'}],
+                fn: (s,p) => {
+                  const a = [];
+                  for (let i = 0; i <= +p.to; i++) a.push('0x' + i.toString(16).toUpperCase());
+                  return a.join('\n');
+                }},
+
+  /* -------- LETTERS -------- */
+  azLower:  { cat:'letter', label:'a → z',           fn: () => 'abcdefghijklmnopqrstuvwxyz'.split('').join('\n') },
+  azUpper:  { cat:'letter', label:'A → Z',           fn: () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').join('\n') },
+  bothCases:{ cat:'letter', label:'aA bB cC ...',    fn: () => 'abcdefghijklmnopqrstuvwxyz'.split('').map(c => c + c.toUpperCase()).join('\n') },
+  cycle:    { cat:'letter', label:'Cycle letters',   params:[{name:'count',label:'count',def:50,type:'number'}],
+              fn: (s,p) => {
+                const az = 'abcdefghijklmnopqrstuvwxyz';
+                const a = [];
+                for (let i = 0; i < +p.count; i++) a.push(az[i % 26]);
+                return a.join('\n');
+              }},
+  lettersNums: { cat:'letter', label:'a1 b2 c3 ...', params:[{name:'to',label:'up to',def:26,type:'number'}],
+                 fn: (s,p) => {
+                   const az = 'abcdefghijklmnopqrstuvwxyz';
+                   const a = [];
+                   for (let i = 0; i < +p.to; i++) a.push(az[i % 26] + (i + 1));
+                   return a.join('\n');
+                 }},
+  customAlpha: { cat:'letter', label:'Custom chars',  params:[{name:'chars',label:'characters',def:'αβγδεζηθικλμνξοπρστυφχψω'}],
+                 fn: (s,p) => p.chars.split('').join('\n') },
+  keypad:   { cat:'letter', label:'AA AB ... ZZ',    fn: () => {
+                const a = [];
+                for (let i = 0; i < 26; i++)
+                  for (let j = 0; j < 26; j++)
+                    a.push(String.fromCharCode(65+i) + String.fromCharCode(65+j));
+                return a.join('\n');
+              }},
+
+  /* -------- TEMPLATES -------- */
+  repeat:    { cat:'tpl', label:'Repeat N times',      params:[
+                 {name:'text',label:'text (or blank = input)',def:''},
+                 {name:'count',label:'times',def:100,type:'number'},
+                 {name:'sep',label:'separator',def:'\\n'}],
+               fn: (s,p) => {
+                 const text = p.text || s;
+                 const sep = p.sep === '\\n' ? '\n' : p.sep;
+                 return Array(+p.count).fill(text).join(sep);
+               }},
+  templateI: { cat:'tpl', label:'Template with {i}',   params:[
+                 {name:'from',label:'from',def:1,type:'number'},
+                 {name:'to',label:'to',def:10,type:'number'},
+                 {name:'template',label:'template',def:'item_{i}'}],
+               fn: (s,p) => {
+                 const a = [];
+                 for (let i = +p.from; i <= +p.to; i++)
+                   a.push(p.template.replace(/\{i\}/g, i));
+                 return a.join('\n');
+               }},
+  wrapEach:  { cat:'tpl', label:'Wrap each line',      params:[{name:'template',label:'template ({x})',def:'"{x}",'}],
+               fn: (s,p) => s.split('\n').map(l => p.template.replace(/\{x\}/g, l)).join('\n') },
+  prefixSuf: { cat:'tpl', label:'Add prefix / suffix', params:[
+                 {name:'pre',label:'prefix',def:''},
+                 {name:'suf',label:'suffix',def:''}],
+               fn: (s,p) => s.split('\n').map(l => p.pre + l + p.suf).join('\n') },
+  indent:    { cat:'tpl', label:'Indent every line',   params:[{name:'spaces',label:'spaces',def:4,type:'number'}],
+               fn: (s,p) => s.split('\n').map(l => ' '.repeat(+p.spaces) + l).join('\n') },
+  commaSep:  { cat:'tpl', label:'Comma-separated',     fn: s => s.split('\n').filter(l => l.trim()).join(', ') },
+  jsonArray: { cat:'tpl', label:'JSON array',          fn: s => {
+                const a = s.split('\n').filter(l => l.trim());
+                if (!a.length) return '[]';
+                return '[\n' + a.map(l => '  "' + l.replace(/"/g, '\\"').replace(/\\/g, '\\\\') + '"').join(',\n') + '\n]';
+              }},
+  htmlList:  { cat:'tpl', label:'HTML <li> items',     fn: s => s.split('\n').filter(l => l.trim()).map(l => '  <li>' + l + '</li>').join('\n') },
+  sqlRows:   { cat:'tpl', label:'SQL placeholder rows',params:[
+                 {name:'count',label:'rows',def:10,type:'number'},
+                 {name:'cols',label:'columns',def:3,type:'number'}],
+               fn: (s,p) => {
+                 const a = [];
+                 for (let i = 0; i < +p.count; i++)
+                   a.push('(' + Array(+p.cols).fill('?').join(', ') + ')');
+                 return a.join(',\n');
+               }},
+  sqlInsert: { cat:'tpl', label:'SQL INSERT wrapper',  params:[
+                 {name:'table',label:'table',def:'users'},
+                 {name:'cols',label:'columns',def:'name, email'}],
+               fn: (s,p) => {
+                 const cols = p.cols.split(',').map(c => c.trim());
+                 const rows = s.split('\n').filter(l => l.trim()).map(() =>
+                   '(' + cols.map(() => '?').join(', ') + ')');
+                 if (!rows.length) return '-- no rows';
+                 return 'INSERT INTO ' + p.table + ' (' + cols.join(', ') + ') VALUES\n' +
+                        rows.join(',\n') + ';';
+               }},
+  jsArray:   { cat:'tpl', label:'JS array',            fn: s => {
+                const a = s.split('\n').filter(l => l.trim());
+                if (!a.length) return '[]';
+                return '[\n' + a.map(l => '  ' + JSON.stringify(l)).join(',\n') + '\n]';
+              }},
+  box:       { cat:'tpl', label:'Box it',              fn: s => {
+                const lines = s.split('\n');
+                const w = Math.max(...lines.map(l => l.length));
+                const top = '┌' + '─'.repeat(w + 2) + '┐';
+                const bot = '└' + '─'.repeat(w + 2) + '┘';
+                const mid = lines.map(l => '│ ' + l.padEnd(w, ' ') + ' │').join('\n');
+                return top + '\n' + mid + '\n' + bot;
+              }},
+};
+
+const CATS = [
+  { id:'case',   label:'Aa  Case' },
+  { id:'text',   label:'✂  Text' },
+  { id:'num',    label:'123  Numbers' },
+  { id:'letter', label:'ABC  Letters' },
+  { id:'tpl',    label:'🧩  Templates' },
+];
+
+/* ------------------------- state --------------------------------------- */
+
+let state = {
+  cat: 'case',
+  op: null,
+  params: {},
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved.cat && CATS.some(c => c.id === saved.cat)) state.cat = saved.cat;
+    if (saved.op && OPS[saved.op]) state.op = saved.op;
+    if (saved.params) state.params = saved.params;
+    if (typeof saved.input === 'string') inputEl.value = saved.input;
+  } catch (e) { /* ignore */ }
+}
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      cat: state.cat,
+      op: state.op,
+      params: state.params,
+      input: inputEl.value,
+    }));
+  } catch (e) {}
+}
+
+/* ------------------------- render -------------------------------------- */
+
+function renderCats() {
+  catsEl.innerHTML = '';
+  CATS.forEach(c => {
+    const b = document.createElement('button');
+    b.textContent = c.label;
+    b.className = state.cat === c.id ? 'active' : '';
+    b.addEventListener('click', () => {
+      state.cat = c.id;
+      state.op = null;
+      state.params = {};
+      renderAll();
+    });
+    catsEl.appendChild(b);
+  });
+}
+
+function renderOps() {
+  opsEl.innerHTML = '';
+  Object.entries(OPS).forEach(([id, op]) => {
+    if (op.cat !== state.cat) return;
+    const b = document.createElement('button');
+    b.textContent = op.label;
+    b.className = state.op === id ? 'active' : '';
+    b.addEventListener('click', () => {
+      state.op = id;
+      // init params
+      const fresh = {};
+      (op.params || []).forEach(p => {
+        fresh[p.name] = (state.params[id] && state.params[id][p.name] !== undefined)
+          ? state.params[id][p.name]
+          : p.def;
+      });
+      state.params[id] = fresh;
+      renderAll();
+      run();
+    });
+    opsEl.appendChild(b);
+  });
+}
+
+function renderParams() {
+  paramsEl.innerHTML = '';
+  if (!state.op) return;
+  const op = OPS[state.op];
+  if (!op.params || !op.params.length) return;
+
+  const head = document.createElement('div');
+  head.className = 'params-head';
+  head.innerHTML = 'parameters for <b>' + op.label.replace(/</g, '&lt;') + '</b>';
+  paramsEl.appendChild(head);
+
+  op.params.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'param-row';
+
+    const lbl = document.createElement('label');
+    lbl.textContent = p.label;
+
+    const inp = document.createElement('input');
+    inp.type = p.type === 'number' ? 'number' : 'text';
+    inp.value = state.params[state.op][p.name] ?? p.def;
+    inp.spellcheck = false;
+
+    inp.addEventListener('input', () => {
+      state.params[state.op][p.name] = inp.value;
+      saveState();
+      run();
+    });
+
+    row.appendChild(lbl);
+    row.appendChild(inp);
+    paramsEl.appendChild(row);
+  });
+}
+
+function renderAll() {
+  renderCats();
+  renderOps();
+  renderParams();
+}
+
+/* ------------------------- run ----------------------------------------- */
+
+function run() {
+  if (!state.op) {
+    outputEl.value = '';
+    statEl.innerHTML = '— lines · — chars';
+    outTitle.textContent = 'idle';
+    saveState();
+    return;
+  }
+  const op = OPS[state.op];
+  const params = state.params[state.op] || {};
+
+  let result = '';
+  try {
+    result = op.fn(inputEl.value, params);
+    if (typeof result !== 'string') result = String(result ?? '');
+  } catch (err) {
+    result = '⚠ SpudGen error: ' + (err.message || String(err));
+  }
+
+  // cap size
+  const lines = result.split('\n');
+  if (lines.length > MAX_LINES) {
+    result = lines.slice(0, MAX_LINES).join('\n') + '\n… (truncated at ' + MAX_LINES.toLocaleString() + ' lines)';
+  }
+
+  outputEl.value = result;
+  const lineCount = result === '' ? 0 : result.split('\n').length;
+  statEl.innerHTML = '<b>' + lineCount.toLocaleString() + '</b> lines · <b>' + result.length.toLocaleString() + '</b> chars';
+  outTitle.textContent = op.label.replace(/[<>]/g, '');
+  saveState();
+}
+
+/* ------------------------- actions ------------------------------------- */
+
+$('copyBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(outputEl.value);
+    const b = $('copyBtn');
+    const old = b.textContent;
+    b.textContent = '✓ Copied';
+    setTimeout(() => b.textContent = old, 900);
+  } catch (e) {
+    outputEl.select();
+    document.execCommand('copy');
+  }
+});
+
+$('dlBtn').addEventListener('click', () => {
+  const blob = new Blob([outputEl.value], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const opId = state.op || 'output';
+  a.href = url;
+  a.download = 'spudgen-' + opId + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+$('swapBtn').addEventListener('click', () => {
+  inputEl.value = outputEl.value;
+  saveState();
+  run();
+});
+
+$('clearBtn').addEventListener('click', () => {
+  inputEl.value = '';
+  outputEl.value = '';
+  state.op = null;
+  state.params = {};
+  renderAll();
+  run();
+});
+
+$('rerollBtn').addEventListener('click', run);
+
+inputEl.addEventListener('input', () => {
+  saveState();
+  // only re-run if the current op uses the input
+  if (state.op) {
+    const op = OPS[state.op];
+    // cheap heuristic: rerun anyway, everything is fast
+    run();
+  }
+});
+
+/* ------------------------- boot ---------------------------------------- */
+
+(function boot() {
+  loadState();
+  renderAll();
+  if (state.op) run();
+  else run();
+})();
+</script>
+</body>
+</html>
